@@ -34,7 +34,8 @@ import {
   Dialog,
   Radio,
   RadioGroup,
-  Uploader
+  Uploader,
+  List
 } from 'vant'
 Vue.use(Field)
 Vue.use(Toast)
@@ -44,6 +45,7 @@ Vue.use(Dialog)
 Vue.use(Radio)
 Vue.use(RadioGroup)
 Vue.use(Uploader)
+Vue.use(List)
 
 
 // 注册一个全局过滤器

@@ -10,7 +10,7 @@
         </div>
         <div class="center">
           <div class="nickname">{{item.nickname}}</div>
-          <div class="date">{{item.create_date}}</div>
+          <div class="date">{{item.create_date | date}}</div>
         </div>
         <div class="right" @click="unfollow(item.id)">取消关注</div>
       </div>
