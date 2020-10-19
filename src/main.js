@@ -38,7 +38,11 @@ import {
   Radio,
   RadioGroup,
   Uploader,
-  List
+  List,
+  Tab,
+  Tabs,
+  PullRefresh,
+  Sticky
 } from 'vant'
 Vue.use(Field)
 Vue.use(Toast)
@@ -49,6 +53,10 @@ Vue.use(Radio)
 Vue.use(RadioGroup)
 Vue.use(Uploader)
 Vue.use(List)
+Vue.use(Tab)
+Vue.use(Tabs)
+Vue.use(PullRefresh)
+Vue.use(Sticky)
 
 
 // 注册一个全局过滤器

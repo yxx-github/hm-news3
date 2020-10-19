@@ -9,6 +9,7 @@ import Edit from '../views/Edit.vue'
 import MyFollow from '../views/MyFollow.vue'
 import MyComment from '../views/MyComment.vue'
 import MyStar from '../views/MyStar.vue'
+import Home from '../views/Home.vue'
 
 
 Vue.use(VueRouter)
@@ -49,10 +50,18 @@ const router = new VueRouter({
     {
       path: '/mystar',
       component: MyStar
+    },
+    {
+      path: '/home',
+      component: Home
     }
   ]
 })
 
+const originalPush = VueRouter.prototype.push
+VueRouter.prototype.push = function push(location) {
+  return originalPush.call(this, location).catch(err => err)
+}
 // 全局前置守卫
 router.beforeEach((to, from, next) => {
   const authPath = ['/user', '/edit', '/myfollow', '/mycomment', '/mystar']
