@@ -27,6 +27,12 @@ Vue.component('hm-button', HmButton)
 import HmPost from './components/HmPost.vue'
 Vue.component('hm-post', HmPost)
 
+import HmComment from './components/HmComment.vue'
+Vue.component('hm-comment', HmComment)
+
+import HmFloor from './components/HmFloor.vue'
+Vue.component('hm-floor', HmFloor)
+
 
 // 引入field输入框组件
 import {
@@ -42,7 +48,8 @@ import {
   Tab,
   Tabs,
   PullRefresh,
-  Sticky
+  Sticky,
+  Icon
 } from 'vant'
 Vue.use(Field)
 Vue.use(Toast)
@@ -57,6 +64,7 @@ Vue.use(Tab)
 Vue.use(Tabs)
 Vue.use(PullRefresh)
 Vue.use(Sticky)
+Vue.use(Icon)
 
 
 // 注册一个全局过滤器
@@ -98,6 +106,10 @@ axios.interceptors.response.use(res => {
   return res
 })
 
+// 创建bus实例 (事件总线)
+const bus = new Vue()
+// 挂载到原型上
+Vue.prototype.$bus = bus
 
 new Vue({
   router,

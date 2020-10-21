@@ -15,10 +15,10 @@
     </div>
     <!-- 内容 -->
     <div class="container">
-      <div class="title line2">妇女无法很好覅合法化会复活复活会复活复活凤凰号发回发货</div>
+      <div class="title line2">{{ detail.title }}</div>
       <div class="name">
-        <span>新闻</span>
-        <span>2020-10-19</span>
+        <span>{{ detail.user.nickname }}</span>
+        <span>{{ detail.create_date | date }}</span>
       </div>
       <!-- 文本内容 -->
       <div v-if="detail.type === 1" class="content" v-html="detail.content"></div>
@@ -32,6 +32,40 @@
         </div>
       </div>
     </div>
+
+    <div ref="box"></div>
+    <!-- 评论 -->
+    <div class="comments">
+      <hm-comment v-for="comment in commentList" :key="comment.id" :comment="comment"></hm-comment>
+    </div>
+
+    <!-- 底部 -->
+    <div class="footer">
+      <div class="input" v-if="!isShow">
+        <div class="left">
+          <input ref="input" @focus="handleFocus" type="text" placeholder="写跟帖">
+        </div>
+        <div class="center">
+          <van-icon name="chat-o" :badge="detail.comment_length"/>
+        </div>
+        <div class="right" @click="star">
+          <van-icon name="star-o" :class="{ active: detail.has_star }"/>
+        </div>
+      </div>
+      <div class="textarea" v-else>
+        <div class="left">
+          <textarea
+            v-model="content"
+            ref="textarea"
+            @blur="handleBlur"
+            :placeholder="replyName ? '回复:' + replyName: '请输入内容'"
+          ></textarea>
+        </div>
+        <div class="right">
+          <div @touchstart="send" class="send">发送</div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -39,11 +73,33 @@
 export default {
   data() {
     return {
-      detail: {}
+      detail: {
+        user: {}
+      }, //详情信息
+      commentList: [], // 评论列表
+      isShow: false, // 控制 textarea 是否显示
+      replyId: '', // 回复id
+      replyName: '', // 回复昵称
+      content: '' //回复内容
     }
   },
   created() {
     this.getDetail()
+    this.getComments()
+
+    // 哪里接收。哪里注册
+    this.$bus.$on('reply', async (replyId, replyName) => {
+      console.log('reply走了', replyId, replyName)
+      // 保存
+      this.replyId = replyId // 用来发送请求
+      this.replyName = replyName // 仅仅用来显示在 textarea
+
+      // 显示textarea
+      this.isShow = true
+      // 自动聚焦
+      await this.$nextTick()
+      this.$refs.textarea && this.$refs.textarea.focus()
+    })
   },
   methods: {
     // 获取文章详情
@@ -110,6 +166,69 @@ export default {
         // 提示
         this.$toast.success(res.data.message)
         // 重新请求
+        this.getDetail()
+      }
+    },
+    // 获取评论列表
+    async getComments() {
+      let res = await this.$axios.get(`/post_comment/${this.$route.params.id}`)
+      if (res.data.statusCode === 200) {
+        this.commentList = res.data.data
+      }
+    },
+    // 聚焦
+    async handleFocus() {
+      // 让 textarea显示
+      this.isShow = true
+      // 自动聚焦
+      await this.$nextTick()
+      this.$refs.textarea.focus()
+    },
+    // 失焦
+    handleBlur() {
+      this.isShow = false
+      if (!this.content) {
+        // 判断 有内容的时候不清空 没内容的时候就清空
+        // 失焦的时候,让 replyId 和 replyName 清空
+        this.replyId = ''
+        this.replyName = ''
+      }
+    },
+    // 点击发送
+    async send() {
+      console.log('发送')
+      let res = await this.$axios.post(
+        `/post_comment/${this.$route.params.id}`,
+        {
+          content: this.content,
+          parent_id: this.replyId
+        }
+      )
+      if (res.data.statusCode === 200) {
+        console.log(res.data)
+        // 提示
+        this.$toast.success(res.data.message)
+        // 重新请求评论列表
+        this.getComments()
+        // 清空
+        this.replyId = ''
+        this.replyName = ''
+        this.content = ''
+
+        // 隐藏textarea
+        this.isShow = false
+
+        // 滚动到某个位置
+        this.$refs.box.scrollIntoView()
+      }
+    },
+    // 点击收藏
+    async star() {
+      let res = await this.$axios.get(`/post_star/${this.$route.params.id}`)
+      if (res.data.statusCode === 200) {
+        // 提示
+        this.$toast.success(res.data.message)
+        // 重新请求数据
         this.getDetail()
       }
     }
@@ -195,6 +314,84 @@ video {
     border: 1px solid #f00;
     i {
       color: red;
+    }
+  }
+}
+.comments {
+  border-top: 1px solid #ccc;
+  padding-bottom: 40px;
+}
+// 底部
+.footer {
+  background-color: #fff;
+  border-top: 1px solid #ccc;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  .input {
+    height: 40px;
+    display: flex;
+
+    .left {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      input {
+        width: 80%;
+        height: 30px;
+        border: none;
+        background-color: #ddd;
+        border-radius: 15px;
+        text-indent: 1em;
+      }
+    }
+    .center,
+    .right {
+      width: 60px;
+      font-size: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .active {
+      color: #f00;
+    }
+  }
+  .textarea {
+    height: 70px;
+    display: flex;
+    .left {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      textarea {
+        border: none;
+        width: 90%;
+        height: 75%;
+        border-radius: 8px;
+        resize: none;
+        background-color: #ddd;
+        text-indent: 1em;
+        padding-top: 5px;
+      }
+    }
+    .right {
+      width: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      .send {
+        width: 40px;
+        height: 30px;
+        background-color: #f00;
+        color: #fff;
+        text-align: center;
+        line-height: 30px;
+        border-radius: 5px;
+      }
     }
   }
 }
