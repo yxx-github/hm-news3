@@ -1,16 +1,19 @@
 <template>
   <div>
     <!-- 头部 -->
-    <div class="header">
-      <div class="left" @click="$router.back()">
-        <i class="iconfont iconjiantou2"></i>
-      </div>
-      <div class="center">
-        <i class="iconfont iconnew"></i>
-      </div>
-      <div class="right">
-        <div @click="unfollow" v-if="detail.has_follow" class="follow">已关注</div>
-        <div @click="follow" v-else class="follow">关注</div>
+    <div class="m">
+      <div ref="box"></div>
+      <div class="header">
+        <div class="left" @click="$router.back()">
+          <i class="iconfont iconjiantou2"></i>
+        </div>
+        <div class="center">
+          <i class="iconfont iconnew"></i>
+        </div>
+        <div class="right">
+          <div @click="unfollow" v-if="detail.has_follow" class="follow">已关注</div>
+          <div @click="follow" v-else class="follow">关注</div>
+        </div>
       </div>
     </div>
     <!-- 内容 -->
@@ -33,36 +36,46 @@
       </div>
     </div>
 
-    <div ref="box"></div>
-    <!-- 评论 -->
-    <div class="comments">
-      <hm-comment v-for="comment in commentList" :key="comment.id" :comment="comment"></hm-comment>
-    </div>
+    <!-- 分页 -->
+    <van-list
+      v-model="loading"
+      :finished="finished"
+      @load="onLoad"
+      :immediate-check="false"
+      finished-text="没有更多了"
+    >
+      <!-- 评论 -->
+      <div class="comments">
+        <hm-comment v-for="(comment,index) in commentList" :key="index" :comment="comment"></hm-comment>
+      </div>
+    </van-list>
 
     <!-- 底部 -->
-    <div class="footer">
-      <div class="input" v-if="!isShow">
-        <div class="left">
-          <input ref="input" @focus="handleFocus" type="text" placeholder="写跟帖">
+    <div class="f">
+      <div class="footer">
+        <div class="input" v-if="!isShow">
+          <div class="left">
+            <input ref="input" @focus="handleFocus" type="text" placeholder="写跟帖">
+          </div>
+          <div class="center">
+            <van-icon name="chat-o" :badge="detail.comment_length"/>
+          </div>
+          <div class="right" @click="star">
+            <van-icon name="star-o" :class="{ active: detail.has_star }"/>
+          </div>
         </div>
-        <div class="center">
-          <van-icon name="chat-o" :badge="detail.comment_length"/>
-        </div>
-        <div class="right" @click="star">
-          <van-icon name="star-o" :class="{ active: detail.has_star }"/>
-        </div>
-      </div>
-      <div class="textarea" v-else>
-        <div class="left">
-          <textarea
-            v-model="content"
-            ref="textarea"
-            @blur="handleBlur"
-            :placeholder="replyName ? '回复:' + replyName: '请输入内容'"
-          ></textarea>
-        </div>
-        <div class="right">
-          <div @touchstart="send" class="send">发送</div>
+        <div class="textarea" v-else>
+          <div class="left">
+            <textarea
+              v-model="content"
+              ref="textarea"
+              @blur="handleBlur"
+              :placeholder="replyName ? '回复:' + replyName: '请输入内容'"
+            ></textarea>
+          </div>
+          <div class="right">
+            <div @touchstart="send" class="send">发送</div>
+          </div>
         </div>
       </div>
     </div>
@@ -80,7 +93,11 @@ export default {
       isShow: false, // 控制 textarea 是否显示
       replyId: '', // 回复id
       replyName: '', // 回复昵称
-      content: '' //回复内容
+      content: '', //回复内容
+      loading: false, // 是否在上一次的加载中
+      finished: false, // 是否全部加载完成
+      pageIndex: 1,
+      pageSize: 10
     }
   },
   created() {
@@ -171,9 +188,26 @@ export default {
     },
     // 获取评论列表
     async getComments() {
-      let res = await this.$axios.get(`/post_comment/${this.$route.params.id}`)
+      if (this.commentList.length > 0 && this.pageIndex === 1) {
+        this.commentList = []
+      }
+      let res = await this.$axios.get(
+        `/post_comment/${this.$route.params.id}`,
+        {
+          params: {
+            pageIndex: this.pageIndex,
+            pageSize: this.pageSize
+          }
+        }
+      )
       if (res.data.statusCode === 200) {
-        this.commentList = res.data.data
+        this.commentList = [...this.commentList, ...res.data.data]
+        // this.commentList = res.data.data
+        console.log(this.commentList)
+        this.loading = false
+        if (res.data.data.length < this.pageSize) {
+          this.finished = true
+        }
       }
     },
     // 聚焦
@@ -208,8 +242,20 @@ export default {
         console.log(res.data)
         // 提示
         this.$toast.success(res.data.message)
+
+        // 让页面回到第一页
+        this.pageIndex = 1
+
         // 重新请求评论列表
         this.getComments()
+
+        // 重新开启分页加载
+        this.loading = true
+        this.finished = false
+
+        // 清空原来的数据
+        this.commentList = []
+
         // 清空
         this.replyId = ''
         this.replyName = ''
@@ -231,44 +277,59 @@ export default {
         // 重新请求数据
         this.getDetail()
       }
+    },
+    // 触底
+    onLoad() {
+      console.log('触底加载')
+      this.pageIndex++
+      this.getComments()
     }
   }
 }
 </script>
 
 <style lang="less" scoped>
-.header {
+.m {
   height: 50px;
-  border-bottom: 1px solid #ccc;
-  display: flex;
-  align-items: center;
+  .header {
+    position: fixed;
+    top: 0;
+    z-index: 999;
+    width: 100%;
+    height: 50px;
+    background-color: #fff;
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    align-items: center;
 
-  .left {
-    width: 40px;
-    text-align: center;
-    i {
-      font-size: 20px;
-    }
-  }
-  .center {
-    flex: 1;
-    i {
-      font-size: 50px;
-      padding-left: 10px;
-    }
-  }
-  .right {
-    width: 80px;
-    .follow {
-      width: 54px;
-      height: 20px;
-      border: 1px solid #666;
+    .left {
+      width: 40px;
       text-align: center;
-      line-height: 21px;
-      border-radius: 10px;
+      i {
+        font-size: 20px;
+      }
+    }
+    .center {
+      flex: 1;
+      i {
+        font-size: 50px;
+        padding-left: 10px;
+      }
+    }
+    .right {
+      width: 80px;
+      .follow {
+        width: 54px;
+        height: 20px;
+        border: 1px solid #666;
+        text-align: center;
+        line-height: 21px;
+        border-radius: 10px;
+      }
     }
   }
 }
+
 .container {
   padding: 10px;
   .title {
@@ -319,78 +380,81 @@ video {
 }
 .comments {
   border-top: 1px solid #ccc;
-  padding-bottom: 40px;
+  // padding-bottom: 40px;
 }
 // 底部
-.footer {
-  background-color: #fff;
-  border-top: 1px solid #ccc;
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  .input {
-    height: 40px;
-    display: flex;
-
-    .left {
-      flex: 1;
+.f {
+  height: 40px;
+  .footer {
+    background-color: #fff;
+    border-top: 1px solid #ccc;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    .input {
+      height: 40px;
       display: flex;
-      justify-content: center;
-      align-items: center;
-      input {
-        width: 80%;
-        height: 30px;
-        border: none;
-        background-color: #ddd;
-        border-radius: 15px;
-        text-indent: 1em;
+
+      .left {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        input {
+          width: 80%;
+          height: 30px;
+          border: none;
+          background-color: #ddd;
+          border-radius: 15px;
+          text-indent: 1em;
+        }
+      }
+      .center,
+      .right {
+        width: 60px;
+        font-size: 24px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .active {
+        color: #f00;
       }
     }
-    .center,
-    .right {
-      width: 60px;
-      font-size: 24px;
+    .textarea {
+      height: 70px;
       display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-    .active {
-      color: #f00;
-    }
-  }
-  .textarea {
-    height: 70px;
-    display: flex;
-    .left {
-      flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      textarea {
-        border: none;
-        width: 90%;
-        height: 75%;
-        border-radius: 8px;
-        resize: none;
-        background-color: #ddd;
-        text-indent: 1em;
-        padding-top: 5px;
+      .left {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        textarea {
+          border: none;
+          width: 90%;
+          height: 75%;
+          border-radius: 8px;
+          resize: none;
+          background-color: #ddd;
+          text-indent: 1em;
+          padding-top: 5px;
+        }
       }
-    }
-    .right {
-      width: 80px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      .right {
+        width: 80px;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
 
-      .send {
-        width: 40px;
-        height: 30px;
-        background-color: #f00;
-        color: #fff;
-        text-align: center;
-        line-height: 30px;
-        border-radius: 5px;
+        .send {
+          width: 40px;
+          height: 30px;
+          background-color: #f00;
+          color: #fff;
+          text-align: center;
+          line-height: 30px;
+          border-radius: 5px;
+        }
       }
     }
   }
